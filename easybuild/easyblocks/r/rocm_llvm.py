@@ -59,8 +59,31 @@ class EB_ROCm_minus_LLVM(EB_LLVM):
             'DEFAULT_ROCM_PATH': self.installdir,
             'LIBOMP_COPY_EXPORTS': 'OFF',
             'CLANG_ENABLE_AMDCLANG': 'ON',
+            #'LIBOMPTARGET_EXTERNAL_PROJECT_ROCM_DEVICE_LIBS_PATH': self.installdir,
+            'LIBOMPTARGET_EXTERNAL_PROJECT_ROCM_DEVICE_LIBS_PATH': os.path.join(self.llvm_src_dir, 'amd', 'device-libs'),
         })
 
+        if LooseVersion('20') <= LooseVersion(self.version) <= LooseVersion('23'):
+            # Set HSA path if ROCR-Runtime source directory exists
+            rocr_runtime_path = os.path.join(self.start_dir, '..', 'ROCR-Runtime-rocm-7.2.3')
+
+            if os.path.exists(rocr_runtime_path):
+                # Pass Clang_DIR to the ROCR external project so it can find ClangConfig.cmake
+                # Use the tools/clang path which is available during the build
+                clang_dir = os.path.join(self.llvm_obj_dir_stage1, 'tools', 'clang', 'cmake', 'modules')
+
+                self._cmakeopts.update({
+                    'LIBOMPTARGET_EXTERNAL_PROJECT_HSA_PATH': rocr_runtime_path,
+                    'OFFLOAD_EXTERNAL_PROJECT_ROCR_CMAKE_ARGS': f'-DClang_DIR={clang_dir}'
+                })
+            # Device-libs are always built in stage 1, regardless of bootstrap
+            # So always use llvm_obj_dir_stage1 for device-libs path
+            amddevicelibs_dir = os.path.join(
+                self.llvm_obj_dir_stage1, 'tools', 'device-libs', 'lib', 'cmake', 'AMDDeviceLibs'
+            )
+            self.runtimes_cmake_args['AMDDeviceLibs_DIR'] = amddevicelibs_dir
+            # Also set for the amdgcn-amd-amdhsa per-target runtime
+            self._cmakeopts['RUNTIMES_amdgcn-amd-amdhsa_AMDDeviceLibs_DIR'] = amddevicelibs_dir
         amd_gfx_list = build_option('amdgcn_capabilities', default=[])
         if not amd_gfx_list and 'amdgcn_capabilities' in self.cfg:
             amd_gfx_list = self.cfg['amdgcn_capabilities']
@@ -94,6 +117,7 @@ class EB_ROCm_minus_LLVM(EB_LLVM):
             remove_dir(os.path.join(self.builddir, 'llvm.obj.2'))
             remove_dir(os.path.join(self.builddir, 'llvm.obj.3'))
         super(EB_ROCm_minus_LLVM, self).configure_step()
+
 
         if 'openmp' in self.final_projects:
             # fix path to include dir for omp.h:

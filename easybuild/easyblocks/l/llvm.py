@@ -585,7 +585,7 @@ class EB_LLVM(CMakeMake):
         options are removed from F90FLAGS and FFLAGS."""
         unsupported_flang_opts = set()
         if self.version >= '21':
-            if self.version < '22':
+            if self.version <= '23':
                 unsupported_flang_opts.update([
                     '-fmath-errno', '-fno-math-errno',
                     '-fno-unsafe-math-optimizations',
