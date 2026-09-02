@@ -107,6 +107,12 @@ class EB_ROCm_minus_LLVM(EB_LLVM):
         self.runtimes_cmake_args['AMDDeviceLibs_DIR'] = os.path.join(
             intermediate_stage_dir, 'tools', 'device-libs', 'lib64', 'cmake', 'AMDDeviceLibs'
         )
+
+        # Clear CMAKE_Fortran_FLAGS for flang builds to avoid inheriting unsupported flags like -fno-math-errno
+        # Use a single space to ensure the arg is added (empty string would be skipped by _add_cmake_runtime_args)
+        if 'flang' in self.final_projects:
+            self.runtimes_cmake_args['CMAKE_Fortran_FLAGS'] = ' '
+
         self._add_cmake_runtime_args()
 
     def configure_step(self):
